@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2ch Video Parser</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="2ch Video Parser - автоматический сборщик и парсер видео с 2ch.hk и 2ch.org. Скачивайте webm, mp4 видео из тредов /b/, /mus/ и других досок.">
+    <meta name="keywords" content="2ch, 2ch.hk, 2ch.org, webm grabber, video parser, 2ch parser, webm parser, mp4 downloader, 2ch videos, доски 2ch, треды 2ch, видео парсер">
+    <meta name="robots" content="index, follow">
+    <meta name="author" content="2ch Video Parser">
+    <link rel="canonical" href=" ">
+
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a25;
+            --accent: #ff6b6b;
+            --accent-hover: #ff8787;
+            --text: #e8e8e8;
+            --text-dim: #888;
+            --border: #2a2a35;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: var(--bg-secondary);
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        
+        .logo { font-size: 22px; font-weight: bold; color: var(--accent); }
+        .stats { color: var(--text-dim); font-size: 13px; }
+        .stats strong { color: var(--text); }
+        
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn:hover { background: var(--accent-hover); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        /* Board Filter Panel */
+        .board-panel {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 20px;
+        }
+        
+        .board-panel-inner {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        
+        .board-panel-title {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .board-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        
+        .board-btn {
+            background: var(--bg-card);
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+        }
+        
+        .board-btn:hover {
+            background: #252530;
+            color: var(--text);
+            border-color: var(--accent);
+        }
+        
+        .board-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+        
+        .board-btn .count {
+            background: rgba(0,0,0,0.3);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 10px;
+            margin-left: 3px;
+        }
+
+        .author-link {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .author-link-inner {
+            max-width: 1800px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+        }
+
+        .author-telegram {
+            display: inline-flex;
+            align-items: center;
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .author-telegram:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .author-telegram svg {
+            flex-shrink: 0;
+            margin-right: 8px;
+        }
+        
+        /* Content */
+        .content {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .video-card {
+            background: var(--bg-card);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        
+        .video-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--accent);
+            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.1);
+        }
+        
+        .video-container {
+            position: relative;
+            padding-top: 56.25%;
+            background: #000;
+        }
+        
+        .video-container video {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: contain;
+        }
+        
+        .video-info { padding: 12px; }
+        
+        .video-info .filename {
+            font-size: 12px;
+            color: var(--text);
+            word-break: break-all;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        .video-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        
+        .video-meta .tag {
+            background: rgba(255,255,255,0.05);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+        
+        .video-meta .tag.board {
+            background: var(--accent);
+            color: white;
+        }
+        
+        .video-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .video-actions a {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            color: var(--text);
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+        
+        .video-actions a:hover { background: var(--accent); }
+        
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 30px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .pagination a,
+        .pagination span {
+            background: var(--bg-card);
+            color: var(--text);
+            padding: 10px 15px;
+            border-radius: 6px;
+            text-decoration: none;
+            border: 1px solid var(--border);
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+        }
+
+        .pagination span {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            cursor: default;
+        }
+
+        .pagination a:hover { border-color: var(--accent); }
+        .pagination a.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-dim);
+        }
+        
+        .empty-state h2 { font-size: 48px; margin-bottom: 15px; }
+        
+        @media (max-width: 768px) {
+            .header-inner { flex-direction: column; }
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        /* Donation Section */
+        .donation-section {
+            background: linear-gradient(135deg, #1a1a25 0%, #15151f 100%);
+            border-top: 2px solid var(--accent);
+            padding: 50px 20px;
+            margin-top: 40px;
+        }
+
+        .donation-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .donation-title {
+            text-align: center;
+            font-size: 28px;
+            color: var(--accent);
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .donation-subtitle {
+            text-align: center;
+            color: var(--text-dim);
+            margin-bottom: 35px;
+            font-size: 14px;
+        }
+
+        .donation-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .donation-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .donation-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 8px 24px rgba(255, 107, 107, 0.1);
+            transform: translateY(-5px);
+        }
+
+        .crypto-icon {
+            font-size: 48px;
+            line-height: 1;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        .crypto-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .crypto-address {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: var(--text-dim);
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            line-height: 1.5;
+            transition: all 0.2s;
+        }
+
+        .donation-card:hover .crypto-address {
+            background: rgba(255, 107, 107, 0.05);
+            border-color: var(--accent);
+        }
+
+        .copy-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: auto;
+        }
+
+        .copy-btn:hover {
+            background: var(--accent-hover);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        }
+
+        .copy-btn.copied {
+            background: #4ade80;
+        }
+
+        @media (max-width: 768px) {
+            .donation-title { font-size: 24px; }
+            .donation-grid { grid-template-columns: 1fr; }
+            .crypto-icon { font-size: 40px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner">
+            <div class="logo">🎬 2ch.org Video Parser</div>
+            <div class="stats">
+                Всего: <strong>{{ total }}</strong> видео | Обновляется каждые 60 мин
+            </div>
+        </div>
+    </header>
+    
+    <nav class="board-panel">
+        <div class="board-panel-inner">
+            <div class="board-panel-title">📂 Фильтр по доскам</div>
+            <div class="board-filters">
+                <a href="/" class="board-btn {% if not current_board and not show_all_unfiltered %}active{% endif %}">
+                    ✓ Все без спама <span class="count">{{ total }}</span>
+                </a>
+                <a href="/?all=true" class="board-btn {% if show_all_unfiltered %}active{% endif %}">
+                    ⚪ Все полностью <span class="count" id="total-all">?</span>
+                </a>
+                {% for board, count in boards_stats %}
+                <a href="?board={{ board }}" class="board-btn {% if current_board == board %}active{% endif %}">
+                    /{{ board }}/ <span class="count">{{ count }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="author-link">
+        <div class="author-link-inner">
+            <a href="https://t.me/sensejke" target="_blank" rel="noopener noreferrer" class="author-telegram">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.22s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.662 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                </svg>
+                <span>По вопросам: @sensejke</span>
+            </a>
+        </div>
+    </div>
+    
+    <main class="content">
+        {% if videos %}
+        <div class="grid">
+            {% for video in videos %}
+            <div class="video-card">
+                <div class="video-container">
+                    <video controls preload="metadata" loading="lazy"
+                           {% if video.thumbnail %}poster="{{ video.thumbnail | thumb_url }}"{% else %}poster="/static/placeholder.png"{% endif %}>
+                        <source src="{{ video.url }}" type="video/{% if '.webm' in video.url %}webm{% else %}mp4{% endif %}">
+                    </video>
+                </div>
+                <div class="video-info">
+                    <div class="filename">{{ video.original_name or video.filename }}</div>
+                    <div class="video-meta">
+                        <span class="tag board">/{{ video.board }}/</span>
+                        {% if video.width and video.height %}
+                        <span class="tag">{{ video.width }}×{{ video.height }}</span>
+                        {% endif %}
+                        {% if video.duration %}
+                        <span class="tag">{{ video.duration }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="video-actions">
+                        <a href="{{ video.url }}" download>⬇️ Скачать</a>
+                        <a href="https://2ch.org/{{ video.board }}/res/{{ video.thread_id }}.html" target="_blank">🔗 Оригинал</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <h2>🎬</h2>
+            <p>Видео пока нет. Парсинг идёт в фоне...</p>
+        </div>
+        {% endif %}
+        
+        {% if total_pages > 1 %}
+        <div class="pagination">
+            {% set start_page = [1, page-4]|max %}
+            {% set end_page = [total_pages, page+4]|min %}
+
+            {% if start_page > 1 %}
+            <a href="?{% if current_board %}board={{ current_board }}&{% endif %}{% if show_all_unfiltered %}all=true&{% endif %}page=1">1</a>
+            {% if start_page > 2 %}
+            <span>...</span>
+            {% endif %}
+            {% endif %}
+
+            {% for page_num in range(start_page, end_page + 1) %}
+            <a href="?{% if current_board %}board={{ current_board }}&{% endif %}{% if show_all_unfiltered %}all=true&{% endif %}page={{ page_num }}"
+               class="{% if page_num == page %}active{% endif %}">{{ page_num }}</a>
+            {% endfor %}
+
+            {% if end_page < total_pages %}
+            {% if end_page < total_pages - 1 %}
+            <span>...</span>
+            {% endif %}
+            <a href="?{% if current_board %}board={{ current_board }}&{% endif %}{% if show_all_unfiltered %}all=true&{% endif %}page={{ total_pages }}">{{ total_pages }}</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </main>
+
+    <!-- Donation Section -->
+    <section class="donation-section">
+        <div class="donation-container">
+            <h2 class="donation-title">💰 Поддержать проект</h2>
+            <p class="donation-subtitle">На поддержание работы парсера = оплата хостинга</p>
+            
+            <div class="donation-grid">
+                <!-- ETH -->
+                <div class="donation-card">
+                    <div class="crypto-icon">Ξ</div>
+                    <div class="crypto-name">Ethereum (ETH)</div>
+                    <div class="crypto-address">0xa9aecf5f040bd8dd9815bafe21439037abed4429</div>
+                    <button class="copy-btn" onclick="copyToClipboard('0xa9aecf5f040bd8dd9815bafe21439037abed4429', this)">
+                        📋 Скопировать
+                    </button>
+                </div>
+
+                <!-- USDT TRC20 -->
+                <div class="donation-card">
+                    <div class="crypto-icon">₮</div>
+                    <div class="crypto-name">USDT (TRC20)</div>
+                    <div class="crypto-address">0xa9aecf5f040bd8dd9815bafe21439037abed4429</div>
+                    <button class="copy-btn" onclick="copyToClipboard('0xa9aecf5f040bd8dd9815bafe21439037abed4429', this)">
+                        📋 Скопировать
+                    </button>
+                </div>
+
+                <!-- Bitcoin -->
+                <div class="donation-card">
+                    <div class="crypto-icon">₿</div>
+                    <div class="crypto-name">Bitcoin (BTC)</div>
+                    <div class="crypto-address">bc1q02guw6mmucapka6nnzcuy6jt433pl4ydxhl48a</div>
+                    <button class="copy-btn" onclick="copyToClipboard('bc1q02guw6mmucapka6nnzcuy6jt433pl4ydxhl48a', this)">
+                        📋 Скопировать
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <p>2ch Video Parser - автоматический сборщик видео с 2ch.org</p>
+        </div>
+    </footer>
+
+    <style>
+    .footer {
+        margin-top: 40px;
+        padding: 20px 0;
+        border-top: 1px solid #e0e0e0;
+        background: #f8f9fa;
+        text-align: center;
+    }
+
+    .footer-content {
+        max-width: 1800px;
+        margin: 0 auto;
+        padding: 0 20px;
+    }
+
+    .footer p {
+        margin: 5px 0;
+        color: #666;
+        font-size: 14px;
+    }
+
+    .footer a {
+        color: #007bff;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .footer a:hover {
+        text-decoration: underline;
+        color: #0056b3;
+    }
+    </style>
+
+    <script>
+        function copyToClipboard(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✅ Скопировано!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('copied');
+                }, 2000);
+            }).catch(() => {
+                alert('Ошибка копирования: ' + text);
+            });
+        }
+
+        // Загружаем счётчик для полного "Все" через API
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/api/videos?limit=1&all=true')
+                .then(r => r.json())
+                .then(data => {
+                    var el = document.getElementById('total-all');
+                    if (el) el.textContent = data.total;
+                })
+                .catch(err => console.log('Ошибка загрузки счётчика:', err));
+        });
+
+    </script>
+</body>
+</html>
